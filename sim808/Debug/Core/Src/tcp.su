@@ -1,0 +1,4 @@
+../Core/Src/tcp.c:12:6:sendCommand	16	static
+../Core/Src/tcp.c:19:6:sendCommandCheck	24	static
+../Core/Src/tcp.c:26:6:sendTcpServer	24	static
+../Core/Src/tcp.c:33:6:connect_TCP	24	static
