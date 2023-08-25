@@ -31,7 +31,7 @@ void sendTcpServer(char *rxBuffer3){
 }
 
 void connect_TCP(char *ip, char *port, char *rxBuffer1) {
-	sendCommandCheck("ATE0\r\n","K",rxBuffer1);
+	sendCommandCheck("ATE0\r\n","OK",rxBuffer1);
 	sendCommandCheck("AT+CIPSHUT\r\n","SHUT OK",rxBuffer1);
 	sendCommandCheck("AT+CIPMUX=0\r\n","OK",rxBuffer1);
 	sendCommandCheck("AT+CSTT=\"internet\",\"\",\"\"\r\n","OK",rxBuffer1);

@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
@@ -26,7 +27,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct UART_HANDLER{
+	int index = 0;
+	char txBuffer[100];
+	char rxBuffer[1024];
+	char rxTmp[1];
+}UART_HANDLER;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -45,7 +51,8 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-
+UART_HANDLER uart1;
+UART_HANDLER uart3;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -53,6 +60,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -60,66 +68,62 @@ static void MX_USART3_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 char *cmd;
-char rxTmp1[1], rxTmp3[1], tx_buffer1[100], rxBuffer3[1024], rxBuffer1[1024], tx_buffer3[100];
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	static uint8_t rxIndex3 = 0, rxIndex1 = 0;
 	static bool startFlag = false;
 
 	if (huart->Instance == huart1.Instance ){
-
 		if(!startFlag){
-			rxIndex1 = 0;
-			memset(rxBuffer1,'\0', 1023);
+			uart1.index = 0;
+			memset(uart1.rxBuffer,'\0', 1023);
 			startFlag = true;
 		}
 
-		if(rxIndex1>1022){
+		if(uart1.index>1022){
 			startFlag = false;
 		}
-		else if((rxTmp1[0] == CR || rxTmp1[0] == LF) && rxIndex1 == 0){
-			//BURASI SIM808 MODÜLÜNÜN FORMAT FARKLILIĞI NEDENİYLE BİLİNÇLİ OLARAK BOŞ BIRAKILMIŞTIR
+		else if((uart1.rxTmp[0] == CR || uart1.rxTmp[0] == LF) && uart1.index == 0){
+			//BURASI SIM808 MODÜLÜNÜN FORMAT FARKLILI�?I NEDENİYLE BİLİNÇLİ OLARAK BO�? BIRAKILMI�?TIR
 		}
 		else{
-			if(rxTmp1[0] == LF){
-				rxBuffer1[rxIndex1-1] = '\0';
-				rxBuffer1[rxIndex1] = '\0';
+			if(uart1.rxTmp[0] == LF){
+				uart1.rxBuffer[uart1.index-1] = '\0';
+				uart1.rxBuffer[uart1.index] = '\0';
 				rxIndex1=0;
 				startFlag = false;
 			}
 			else{
-				rxBuffer1[rxIndex1]=rxTmp1[0];
-				rxIndex1++;
+				uart1.rxBuffer[uart1.index]=uart1.rxTmp[0];
+				uart1.index++;
 			}
 		}
 
-
 		HAL_UART_Receive_IT(&huart1, rxTmp1, 1);
-
 	}
 	else if (huart->Instance == huart3.Instance ){
-		if(rxTmp3[0] == '#'){
+		if(uart3.rxTmp[0] == '#'){
 			startFlag = true;
-			rxIndex3 = 0;
+			uart3.index = 0;
 		}
 
 		if(startFlag){
-			if(rxIndex3<1022){
-				rxBuffer3[rxIndex3++] = rxTmp3[0];
-				if(rxTmp3[0] == '!'){
-					rxBuffer3[rxIndex3] = '\0';
+			if(uart3.index<1022){
+				rxBuffer3[uart3.index] = uart3.rxTmp[0];
+				if(uart3.rxTmp[0] == '!'){
+					uart3.rxBuffer[uart3.index] = '\0';
 					startFlag = false;
-					sendTcpServer(rxBuffer3,rxBuffer1);
+					sendTcpServer(uart3.rxBuffer);
 				}
 			}
 			else{
 				startFlag = false;
-				rxBuffer3[rxIndex3++] = '!';
-				rxBuffer3[rxIndex3] = '\0';
+				uart3.rxBuffer[uart3.index] = '!';
+				uart3.rxBuffer[uart3.index] = '\0';
 			}
 		}
 
-		HAL_UART_Receive_IT(&huart3, rxTmp3, 1);
+		HAL_UART_Receive_IT(&huart3, uart3.rxTmp[0], 1);
 	}
 }
 
@@ -157,8 +161,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
+
+  /* Initialize interrupts */
+  MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  connect_TCP("<ip>", "<port>", rxBuffer1);
+  HAL_UART_Receive_IT(&huart1, uart1.rxTmp[0], 1);
+  HAL_UART_Receive_IT(&huart3, uart3.rxTmp[0], 1);
+  connect_TCP("ip", "port", uart1.rxBuffer);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -206,6 +215,20 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief NVIC Configuration.
+  * @retval None
+  */
+static void MX_NVIC_Init(void)
+{
+  /* USART1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(USART1_IRQn);
+  /* USART3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(USART3_IRQn);
 }
 
 /**
